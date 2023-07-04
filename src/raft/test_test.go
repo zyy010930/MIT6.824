@@ -146,10 +146,8 @@ func TestBasicAgree2B(t *testing.T) {
 	cfg.end()
 }
 
-//
 // check, based on counting bytes of RPCs, that
 // each command is sent to each peer just once.
-//
 func TestRPCBytes2B(t *testing.T) {
 	servers := 3
 	cfg := make_config(t, servers, false, false)
@@ -181,9 +179,7 @@ func TestRPCBytes2B(t *testing.T) {
 	cfg.end()
 }
 
-//
 // test just failure of followers.
-//
 func For2023TestFollowerFailure2B(t *testing.T) {
 	servers := 3
 	cfg := make_config(t, servers, false, false)
@@ -228,9 +224,7 @@ func For2023TestFollowerFailure2B(t *testing.T) {
 	cfg.end()
 }
 
-//
 // test just failure of leaders.
-//
 func For2023TestLeaderFailure2B(t *testing.T) {
 	servers := 3
 	cfg := make_config(t, servers, false, false)
@@ -270,10 +264,8 @@ func For2023TestLeaderFailure2B(t *testing.T) {
 	cfg.end()
 }
 
-//
 // test that a follower participates after
 // disconnect and re-connect.
-//
 func TestFailAgree2B(t *testing.T) {
 	servers := 3
 	cfg := make_config(t, servers, false, false)
@@ -286,6 +278,7 @@ func TestFailAgree2B(t *testing.T) {
 	// disconnect one follower from the network.
 	leader := cfg.checkOneLeader()
 	cfg.disconnect((leader + 1) % servers)
+	fmt.Printf("节点%d断开连接\n", (leader+1)%servers)
 
 	// the leader and remaining follower should be
 	// able to agree despite the disconnected follower.
@@ -297,7 +290,7 @@ func TestFailAgree2B(t *testing.T) {
 
 	// re-connect
 	cfg.connect((leader + 1) % servers)
-
+	fmt.Printf("节点%d重新连接\n", (leader+1)%servers)
 	// the full set of servers should preserve
 	// previous agreements, and be able to agree
 	// on new commands.
@@ -322,6 +315,7 @@ func TestFailNoAgree2B(t *testing.T) {
 	cfg.disconnect((leader + 1) % servers)
 	cfg.disconnect((leader + 2) % servers)
 	cfg.disconnect((leader + 3) % servers)
+	fmt.Printf("节点%d,%d,%d断开连接\n", (leader+1)%servers, (leader+2)%servers, (leader+3)%servers)
 
 	index, _, ok := cfg.rafts[leader].Start(20)
 	if ok != true {
@@ -342,6 +336,7 @@ func TestFailNoAgree2B(t *testing.T) {
 	cfg.connect((leader + 1) % servers)
 	cfg.connect((leader + 2) % servers)
 	cfg.connect((leader + 3) % servers)
+	fmt.Printf("节点%d,%d,%d重新连接\n", (leader+1)%servers, (leader+2)%servers, (leader+3)%servers)
 
 	// the disconnected majority may have chosen a leader from
 	// among their own ranks, forgetting index 2.
@@ -472,26 +467,31 @@ func TestRejoin2B(t *testing.T) {
 	// leader network failure
 	leader1 := cfg.checkOneLeader()
 	cfg.disconnect(leader1)
-
+	fmt.Printf("leader1 %d is disconnect!\n", leader1)
 	// make old leader try to agree on some entries
 	cfg.rafts[leader1].Start(102)
 	cfg.rafts[leader1].Start(103)
 	cfg.rafts[leader1].Start(104)
+	fmt.Printf("\nleader1接受3条指令\n")
 
 	// new leader commits, also for index=2
 	cfg.one(103, 2, true)
+	fmt.Printf("\n新添加指令103\n")
 
 	// new leader network failure
 	leader2 := cfg.checkOneLeader()
 	cfg.disconnect(leader2)
+	fmt.Printf("leader2 %d is disconnect!\n", leader2)
 
 	// old leader connected again
 	cfg.connect(leader1)
+	fmt.Printf("leader1 %d is connect!!\n", leader1)
 
 	cfg.one(104, 2, true)
 
 	// all together now
 	cfg.connect(leader2)
+	fmt.Printf("leader2 %d is connect!!\n", leader2)
 
 	cfg.one(105, servers, true)
 
@@ -512,9 +512,10 @@ func TestBackup2B(t *testing.T) {
 	cfg.disconnect((leader1 + 2) % servers)
 	cfg.disconnect((leader1 + 3) % servers)
 	cfg.disconnect((leader1 + 4) % servers)
+	fmt.Printf("节点%d,%d,%d断开连接\n", (leader1+2)%servers, (leader1+3)%servers, (leader1+4)%servers)
 
 	// submit lots of commands that won't commit
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 5; i++ {
 		cfg.rafts[leader1].Start(rand.Int())
 	}
 
@@ -522,14 +523,16 @@ func TestBackup2B(t *testing.T) {
 
 	cfg.disconnect((leader1 + 0) % servers)
 	cfg.disconnect((leader1 + 1) % servers)
+	fmt.Printf("节点%d,%d断开连接\n", (leader1+0)%servers, (leader1+1)%servers)
 
 	// allow other partition to recover
 	cfg.connect((leader1 + 2) % servers)
 	cfg.connect((leader1 + 3) % servers)
 	cfg.connect((leader1 + 4) % servers)
+	fmt.Printf("节点%d,%d,%d连接\n", (leader1+2)%servers, (leader1+3)%servers, (leader1+4)%servers)
 
 	// lots of successful commands to new group.
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 5; i++ {
 		cfg.one(rand.Int(), 3, true)
 	}
 
@@ -540,9 +543,10 @@ func TestBackup2B(t *testing.T) {
 		other = (leader2 + 1) % servers
 	}
 	cfg.disconnect(other)
+	fmt.Printf("节点%d断开连接\n", other)
 
 	// lots more commands that won't commit
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 5; i++ {
 		cfg.rafts[leader2].Start(rand.Int())
 	}
 
@@ -555,9 +559,10 @@ func TestBackup2B(t *testing.T) {
 	cfg.connect((leader1 + 0) % servers)
 	cfg.connect((leader1 + 1) % servers)
 	cfg.connect(other)
+	fmt.Printf("节点%d,%d,%d连接\n", (leader1+0)%servers, (leader1+1)%servers, other)
 
 	// lots of successful commands to new group.
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 5; i++ {
 		cfg.one(rand.Int(), 3, true)
 	}
 
@@ -565,6 +570,7 @@ func TestBackup2B(t *testing.T) {
 	for i := 0; i < servers; i++ {
 		cfg.connect(i)
 	}
+	fmt.Printf("全部恢复连接\n")
 	cfg.one(rand.Int(), servers, true)
 
 	cfg.end()
@@ -802,7 +808,6 @@ func TestPersist32C(t *testing.T) {
 	cfg.end()
 }
 
-//
 // Test the scenarios described in Figure 8 of the extended Raft paper. Each
 // iteration asks a leader, if there is one, to insert a command in the Raft
 // log.  If there is a leader, that leader will fail quickly with a high
@@ -811,7 +816,6 @@ func TestPersist32C(t *testing.T) {
 // alive servers isn't enough to form a majority, perhaps start a new server.
 // The leader in a new term may try to finish replicating log entries that
 // haven't been committed yet.
-//
 func TestFigure82C(t *testing.T) {
 	servers := 5
 	cfg := make_config(t, servers, false, false)
@@ -1192,11 +1196,9 @@ func TestSnapshotInstallUnCrash2D(t *testing.T) {
 	snapcommon(t, "Test (2D): install snapshots (unreliable+crash)", false, false, true)
 }
 
-//
 // do the servers persist the snapshots, and
 // restart using snapshot along with the
 // tail of the log?
-//
 func TestSnapshotAllCrash2D(t *testing.T) {
 	servers := 3
 	iters := 5

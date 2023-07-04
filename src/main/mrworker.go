@@ -13,18 +13,13 @@ package main
 import "6.824/mr"
 import "plugin"
 import "os"
-import "fmt"
 import "log"
 
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Fprintf(os.Stderr, "Usage: mrworker xxx.so\n")
-		os.Exit(1)
-	}
 
+	workerId := os.Args[2]
 	mapf, reducef := loadPlugin(os.Args[1])
-
-	mr.Worker(mapf, reducef)
+	mr.Worker(mapf, reducef, workerId)
 }
 
 //

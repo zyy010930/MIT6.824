@@ -23,7 +23,30 @@ type ExampleReply struct {
 }
 
 // Add your RPC definitions here.
+type JobType int
 
+const (
+	MapJob = iota
+	ReduceJob
+	WaittingJob
+	KillJob
+)
+
+type Condition int
+
+const (
+	MapPhase = iota
+	ReducePhase
+	AllDone
+)
+
+type JobCondition int
+
+const (
+	JobWorking = iota
+	JobWaiting
+	JobDone
+)
 
 // Cook up a unique-ish UNIX-domain socket name
 // in /var/tmp, for the coordinator.
