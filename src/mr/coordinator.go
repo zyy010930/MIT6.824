@@ -26,19 +26,15 @@ var mu sync.Mutex
 
 // Your code here -- RPC handlers for the worker to call.
 
-//
 // an example RPC handler.
 //
 // the RPC argument and reply types are defined in rpc.go.
-//
 func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
 	reply.Y = args.X + 1
 	return nil
 }
 
-//
 // start a thread that listens for RPCs from worker.go
-//
 func (c *Coordinator) server() {
 	rpc.Register(c)
 	rpc.HandleHTTP()
@@ -52,10 +48,8 @@ func (c *Coordinator) server() {
 	go http.Serve(l, nil)
 }
 
-//
 // main/mrcoordinator.go calls Done() periodically to find out
 // if the entire job has finished.
-//
 func (c *Coordinator) Done() bool {
 	ret := false
 
@@ -64,11 +58,9 @@ func (c *Coordinator) Done() bool {
 	return ret
 }
 
-//
 // create a Coordinator.
 // main/mrcoordinator.go calls this function.
 // nReduce is the number of reduce tasks to use.
-//
 func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{
 		JobChannelMap:    make(chan *Job, len(files)),
@@ -170,6 +162,32 @@ func (c *Coordinator) nextPhase() {
 	}
 }
 
+func (j *JobMetaHolder) checkJobDone() bool {
+	reduceDoneNum := 0
+	reduceUndoneNum := 0
+	mapDoneNum := 0
+	mapUndoneNum := 0
+	for _, v := range j.MetaMap {
+		if v.JobPtr.JobType == MapJob {
+			if v.condition == JobDone {
+				mapDoneNum += 1
+			} else {
+				mapUndoneNum++
+			}
+		} else {
+			if v.condition == JobDone {
+				reduceDoneNum++
+			} else {
+				reduceUndoneNum++
+			}
+		}
+	}
+	fmt.Printf("%d/%d map jobs are done, %d/%d reduce job are done\n",
+		mapDoneNum, mapDoneNum+mapUndoneNum, reduceDoneNum, reduceDoneNum+reduceUndoneNum)
+
+	return (reduceDoneNum > 0 && reduceUndoneNum == 0) || (mapDoneNum > 0 && mapUndoneNum == 0)
+}
+
 func (c *Coordinator) DistributeJob(args *ExampleArgs, reply *Job) error {
 	mu.Lock()
 	defer mu.Unlock()
@@ -206,3 +224,4 @@ func (c *Coordinator) DistributeJob(args *ExampleArgs, reply *Job) error {
 	return nil
 
 }
+
