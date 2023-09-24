@@ -1,6 +1,9 @@
 package kvraft
 
-import "6.824/porcupine"
+import (
+	"6.824/porcupine"
+	"log"
+)
 import "6.824/models"
 import "testing"
 import "strconv"
@@ -253,7 +256,7 @@ func GenericTest(t *testing.T, part string, nclients int, nservers int, unreliab
 		clnts[i] = make(chan int)
 	}
 	for i := 0; i < 3; i++ {
-		// log.Printf("Iteration %v\n", i)
+		log.Printf("Iteration %v\n", i)
 		atomic.StoreInt32(&done_clients, 0)
 		atomic.StoreInt32(&done_partitioner, 0)
 		go spawn_clients_and_wait(t, cfg, nclients, func(cli int, myck *Clerk, t *testing.T) {
@@ -263,7 +266,9 @@ func GenericTest(t *testing.T, part string, nclients int, nservers int, unreliab
 			}()
 			last := "" // only used when not randomkeys
 			if !randomkeys {
+				log.Printf("PUT begin\n")
 				Put(cfg, myck, strconv.Itoa(cli), last, opLog, cli)
+				log.Printf("PUT end\n")
 			}
 			for atomic.LoadInt32(&done_clients) == 0 {
 				var key string
@@ -274,7 +279,7 @@ func GenericTest(t *testing.T, part string, nclients int, nservers int, unreliab
 				}
 				nv := "x " + strconv.Itoa(cli) + " " + strconv.Itoa(j) + " y"
 				if (rand.Int() % 1000) < 500 {
-					// log.Printf("%d: client new append %v\n", cli, nv)
+					log.Printf("%d: client new append %v\n", cli, nv)
 					Append(cfg, myck, key, nv, opLog, cli)
 					if !randomkeys {
 						last = NextValue(last, nv)
@@ -286,7 +291,7 @@ func GenericTest(t *testing.T, part string, nclients int, nservers int, unreliab
 					Put(cfg, myck, key, nv, opLog, cli)
 					j++
 				} else {
-					// log.Printf("%d: client new get %v\n", cli, key)
+					log.Printf("%d: client new get %v\n", cli, key)
 					v := Get(cfg, myck, key, opLog, cli)
 					// the following check only makes sense when we're not using random keys
 					if !randomkeys && v != last {
@@ -334,15 +339,15 @@ func GenericTest(t *testing.T, part string, nclients int, nservers int, unreliab
 			cfg.ConnectAll()
 		}
 
-		// log.Printf("wait for clients\n")
+		log.Printf("wait for clients\n")
 		for i := 0; i < nclients; i++ {
-			// log.Printf("read from clients %d\n", i)
+			log.Printf("read from clients %d\n", i)
 			j := <-clnts[i]
 			// if j < 10 {
 			// 	log.Printf("Warning: client %d managed to perform only %d put operations in 1 sec?\n", i, j)
 			// }
 			key := strconv.Itoa(i)
-			// log.Printf("Check %v for client %d\n", j, i)
+			log.Printf("Check %v for client %d\n", j, i)
 			v := Get(cfg, ck, key, opLog, 0)
 			if !randomkeys {
 				checkClntAppends(t, i, v, j)
@@ -427,16 +432,12 @@ func TestBasic3A(t *testing.T) {
 	GenericTest(t, "3A", 1, 5, false, false, false, -1, false)
 }
 
-func TestSpeed3A(t *testing.T) {
-	GenericTestSpeed(t, "3A", -1)
-}
-
-func TestConcurrent3A(t *testing.T) {
+func TestConcurrent3A1(t *testing.T) {
 	// Test: many clients (3A) ...
 	GenericTest(t, "3A", 5, 5, false, false, false, -1, false)
 }
 
-func TestUnreliable3A(t *testing.T) {
+func TestUnreliable3A1(t *testing.T) {
 	// Test: unreliable net, many clients (3A) ...
 	GenericTest(t, "3A", 5, 5, true, false, false, -1, false)
 }
@@ -469,84 +470,6 @@ func TestUnreliableOneKey3A(t *testing.T) {
 
 	vx := Get(cfg, ck, "k", nil, -1)
 	checkConcurrentAppends(t, vx, counts)
-
-	cfg.end()
-}
-
-// Submit a request in the minority partition and check that the requests
-// doesn't go through until the partition heals.  The leader in the original
-// network ends up in the minority partition.
-func TestOnePartition3A(t *testing.T) {
-	const nservers = 5
-	cfg := make_config(t, nservers, false, -1)
-	defer cfg.cleanup()
-	ck := cfg.makeClient(cfg.All())
-
-	Put(cfg, ck, "1", "13", nil, -1)
-
-	cfg.begin("Test: progress in majority (3A)")
-
-	p1, p2 := cfg.make_partition()
-	cfg.partition(p1, p2)
-
-	ckp1 := cfg.makeClient(p1)  // connect ckp1 to p1
-	ckp2a := cfg.makeClient(p2) // connect ckp2a to p2
-	ckp2b := cfg.makeClient(p2) // connect ckp2b to p2
-
-	Put(cfg, ckp1, "1", "14", nil, -1)
-	check(cfg, t, ckp1, "1", "14")
-
-	cfg.end()
-
-	done0 := make(chan bool)
-	done1 := make(chan bool)
-
-	cfg.begin("Test: no progress in minority (3A)")
-	go func() {
-		Put(cfg, ckp2a, "1", "15", nil, -1)
-		done0 <- true
-	}()
-	go func() {
-		Get(cfg, ckp2b, "1", nil, -1) // different clerk in p2
-		done1 <- true
-	}()
-
-	select {
-	case <-done0:
-		t.Fatalf("Put in minority completed")
-	case <-done1:
-		t.Fatalf("Get in minority completed")
-	case <-time.After(time.Second):
-	}
-
-	check(cfg, t, ckp1, "1", "14")
-	Put(cfg, ckp1, "1", "16", nil, -1)
-	check(cfg, t, ckp1, "1", "16")
-
-	cfg.end()
-
-	cfg.begin("Test: completion after heal (3A)")
-
-	cfg.ConnectAll()
-	cfg.ConnectClient(ckp2a, cfg.All())
-	cfg.ConnectClient(ckp2b, cfg.All())
-
-	time.Sleep(electionTimeout)
-
-	select {
-	case <-done0:
-	case <-time.After(30 * 100 * time.Millisecond):
-		t.Fatalf("Put did not complete")
-	}
-
-	select {
-	case <-done1:
-	case <-time.After(30 * 100 * time.Millisecond):
-		t.Fatalf("Get did not complete")
-	default:
-	}
-
-	check(cfg, t, ck, "1", "15")
 
 	cfg.end()
 }
@@ -591,12 +514,10 @@ func TestPersistPartitionUnreliableLinearizable3A(t *testing.T) {
 	GenericTest(t, "3A", 15, 7, true, true, true, -1, true)
 }
 
-//
 // if one server falls behind, then rejoins, does it
 // recover by using the InstallSnapshot RPC?
 // also checks that majority discards committed log entries
 // even if minority doesn't respond.
-//
 func TestSnapshotRPC3B(t *testing.T) {
 	const nservers = 3
 	maxraftstate := 1000

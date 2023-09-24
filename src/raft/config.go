@@ -203,6 +203,7 @@ func (cfg *config) ingestSnap(i int, snapshot []byte, index int) string {
 		cfg.logs[i][j] = xlog[j]
 	}
 	cfg.lastApplied[i] = lastIncludedIndex
+	fmt.Printf("snap cfg.lastApplied = %d\n", cfg.lastApplied[i])
 	return ""
 }
 
@@ -226,8 +227,9 @@ func (cfg *config) applierSnap(i int, applyCh chan ApplyMsg) {
 				cfg.mu.Unlock()
 			}
 		} else if m.CommandValid {
+			//fmt.Printf("command index = %d\n", m.CommandIndex)
 			if m.CommandIndex != cfg.lastApplied[i]+1 {
-				err_msg = fmt.Sprintf("server %v apply out of order, expected index %v, got %v", i, cfg.lastApplied[i]+1, m.CommandIndex)
+				err_msg = fmt.Sprintf("server %v apply %v out of order, expected index %v, got %v", i, m.Command, cfg.lastApplied[i]+1, m.CommandIndex)
 			}
 
 			if err_msg == "" {
@@ -242,6 +244,7 @@ func (cfg *config) applierSnap(i int, applyCh chan ApplyMsg) {
 
 			cfg.mu.Lock()
 			cfg.lastApplied[i] = m.CommandIndex
+			//fmt.Printf("cfg.lastApplied = %d\n", cfg.lastApplied[i])
 			cfg.mu.Unlock()
 
 			if (m.CommandIndex+1)%SnapShotInterval == 0 {
@@ -253,7 +256,9 @@ func (cfg *config) applierSnap(i int, applyCh chan ApplyMsg) {
 					xlog = append(xlog, cfg.logs[i][j])
 				}
 				e.Encode(xlog)
+				fmt.Printf("snapshot now\n")
 				rf.Snapshot(m.CommandIndex, w.Bytes())
+				fmt.Printf("snapshot end\n")
 			}
 		} else {
 			// Ignore other types of ApplyMsg.
@@ -572,6 +577,7 @@ func (cfg *config) one(cmd interface{}, expectedServers int, retry bool) int {
 			if rf != nil {
 				index1, _, ok := rf.Start(cmd)
 				if ok {
+					//fmt.Printf("rf is %d, index is %d\n", starts, index1)
 					index = index1
 					break
 				}
@@ -584,7 +590,7 @@ func (cfg *config) one(cmd interface{}, expectedServers int, retry bool) int {
 			t1 := time.Now()
 			for time.Since(t1).Seconds() < 2 {
 				nd, cmd1 := cfg.nCommitted(index)
-				fmt.Printf("cmd1 is %d,cmd is %d,index is %d,nd is %d\n", cmd1, cmd, index, nd)
+				//fmt.Printf("nd = %d, cmd = %d\n", nd, cmd1)
 				if nd > 0 && nd >= expectedServers {
 					// committed
 					if cmd1 == cmd {
