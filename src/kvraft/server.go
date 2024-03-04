@@ -4,6 +4,7 @@ import (
 	"6.824/labgob"
 	"6.824/labrpc"
 	"6.824/raft"
+	"bytes"
 	"fmt"
 	"log"
 	"sync"
@@ -130,12 +131,32 @@ func (kv *KVServer) CommandApply(applyMsg raft.ApplyMsg) {
 		fmt.Printf("[%d]Put key:%s, %s\n", kv.me, op.Key, op.Value)
 	}
 	if _, isLeader := kv.rf.GetState(); !isLeader {
+		DPrintf("kv.rf.GetPersistSize = %d\n", kv.rf.GetPersistSize())
+		if kv.maxraftstate != -1 && kv.rf.GetPersistSize() >= int(float64(kv.maxraftstate)*0.9) {
+			w := new(bytes.Buffer)
+			e := labgob.NewEncoder(w)
+			_ = e.Encode(kv.dataStore)
+			_ = e.Encode(kv.lastValue)
+			_ = e.Encode(kv.clerkRequest)
+			kv.rf.Snapshot(applyMsg.CommandIndex, w.Bytes())
+			DPrintf("applyMsg.CommandIndex:%d SnapShot", applyMsg.CommandIndex)
+		}
 		return
 	}
 	if applyChannel, ok := kv.serverChan[index]; ok {
 		DPrintf("kvserver[%d]: applyMsg: %v处理完成,通知index = [%d]的channel\n", kv.me, applyMsg, index)
 		//kv.mu.Unlock()
 		applyChannel <- apply
+		DPrintf("kv.rf.GetPersistSize = %d\n", kv.rf.GetPersistSize())
+		if kv.maxraftstate != -1 && kv.rf.GetPersistSize() >= int(float64(kv.maxraftstate)*0.9) {
+			w := new(bytes.Buffer)
+			e := labgob.NewEncoder(w)
+			_ = e.Encode(kv.dataStore)
+			_ = e.Encode(kv.lastValue)
+			_ = e.Encode(kv.clerkRequest)
+			kv.rf.Snapshot(applyMsg.CommandIndex, w.Bytes())
+			DPrintf("applyMsg.CommandIndex:%d SnapShot", applyMsg.CommandIndex)
+		}
 		//kv.mu.Lock()
 		DPrintf("kvserver[%d]: applyMsg: %v处理完成,通知完成index = [%d]的channel\n", kv.me, applyMsg, index)
 	}

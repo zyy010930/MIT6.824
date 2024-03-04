@@ -101,6 +101,10 @@ type Entry struct {
 	Term    int
 }
 
+func (rf *Raft) GetPersistSize() int {
+	return rf.persister.RaftStateSize()
+}
+
 // return currentTerm and whether this server
 // believes it is the leader.
 func (rf *Raft) GetState() (int, bool) {
@@ -234,6 +238,11 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 
+	fmt.Printf("%d: rf.currentTerm=%d,args.Term=%d,args.LastIncludedIndex=%d,args.LastIncludedTerm=%d,rf.lastAppliedSnapshotIndex=%d,len=%d\n", rf.me, rf.currentTerm, args.Term, args.LastIncludedIndex, args.LastIncludedTerm, rf.lastAppliedSnapshotIndex, len(rf.log))
+	if rf.lastIncludedIndex >= args.LastIncludedIndex {
+		reply.Term = -1
+		return
+	}
 	if rf.currentTerm > args.Term || args.LastIncludedIndex < rf.lastAppliedSnapshotIndex {
 		reply.Term = rf.currentTerm
 		return
