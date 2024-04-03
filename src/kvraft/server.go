@@ -54,6 +54,27 @@ type ServerApply struct {
 	Ok    bool
 }
 
+func (kv *KVServer) installSnapshot(snapshot []byte) {
+	if len(snapshot) == 0 {
+		return
+	}
+	r := bytes.NewBuffer(snapshot)
+	d := labgob.NewDecoder(r)
+	var datastore map[string]string
+	var lastValue map[int64]string
+	var clerkRequest map[int64]int
+	if d.Decode(&datastore) != nil ||
+		d.Decode(&lastValue) != nil ||
+		d.Decode(&clerkRequest) != nil {
+		log.Fatalf("snapshot decode error")
+	}
+
+	kv.dataStore = datastore
+	kv.lastValue = lastValue
+	kv.clerkRequest = clerkRequest
+
+}
+
 func (kv *KVServer) ListenChannel(ch chan raft.ApplyMsg) {
 	for applyMsg := range ch {
 		if kv.killed() {
@@ -344,6 +365,7 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 	kv.lastValue = make(map[int64]string)
 	kv.rf = raft.Make(servers, me, persister, kv.applyCh)
 
+	kv.installSnapshot(persister.ReadSnapshot())
 	// You may need initialization code here.
 	go kv.ListenChannel(kv.applyCh)
 	return kv
