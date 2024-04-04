@@ -69,10 +69,11 @@ func (kv *KVServer) installSnapshot(snapshot []byte) {
 		log.Fatalf("snapshot decode error")
 	}
 
+	kv.mu.Lock()
 	kv.dataStore = datastore
 	kv.lastValue = lastValue
 	kv.clerkRequest = clerkRequest
-
+	kv.mu.Unlock()
 }
 
 func (kv *KVServer) ListenChannel(ch chan raft.ApplyMsg) {
@@ -83,6 +84,9 @@ func (kv *KVServer) ListenChannel(ch chan raft.ApplyMsg) {
 		if applyMsg.CommandValid {
 			DPrintf("CommandApply!!!!!!!!!\n")
 			kv.CommandApply(applyMsg)
+		} else if applyMsg.SnapshotValid {
+			DPrintf("SnapshotApply!!!!!!!!\n")
+			kv.installSnapshot(applyMsg.Snapshot)
 		}
 	}
 	//for !kv.killed() {
@@ -95,6 +99,12 @@ func (kv *KVServer) ListenChannel(ch chan raft.ApplyMsg) {
 	//	}
 	//}
 }
+
+//func (kv *KVServer) SnapshotApply(applyMsg raft.ApplyMsg) {
+//	kv.mu.Lock()
+//	defer kv.mu.Unlock()
+//
+//}
 
 func (kv *KVServer) CommandApply(applyMsg raft.ApplyMsg) {
 	kv.mu.Lock()
