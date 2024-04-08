@@ -248,7 +248,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 		return
 	}
 	rf.timer = time.Now().Add(time.Duration((600 + rand.Int63n(400)) * int64(time.Millisecond)))
-	index := args.LastIncludedIndex
+	index := args.LastIncludedIndex - rf.lastIncludedIndex
 	tempLog := make([]Entry, 0)
 	//tempLog = append(tempLog, Entry{})
 
