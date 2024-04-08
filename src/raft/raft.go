@@ -258,7 +258,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	rf.log = tempLog
 	rf.snapshot = clone(args.Data)
 	rf.commitIndex = index
-	fmt.Printf("%d: start from install,args = %d,last = %d\n", rf.me, args.LastIncludedIndex, rf.lastIncludedIndex)
+	fmt.Printf("%d: start from install,args = %d,last = %d, len = %d\n", rf.me, args.LastIncludedIndex, rf.lastIncludedIndex, len(rf.log))
 
 	rf.lastIncludedIndex = args.LastIncludedIndex
 	rf.lastIncludedTerm = args.LastIncludedTerm
@@ -789,7 +789,7 @@ func (rf *Raft) ticker() {
 					//fmt.Printf("%s\n", args.Record)
 					args.PrevLogIndex = rf.nextIndex[serveId] - 1
 					args.PrevLogTerm = rf.lastIncludedTerm
-					fmt.Printf("prevlogindex = %d, lastIndex = %d\n", args.PrevLogIndex, rf.lastIncludedIndex)
+					fmt.Printf("%d: prevlogindex = %d, lastIndex = %d, rf.log = %d\n", rf.me, args.PrevLogIndex, rf.lastIncludedIndex, len(rf.log))
 					if (args.PrevLogIndex - rf.lastIncludedIndex) > 0 {
 						args.PrevLogTerm = rf.log[args.PrevLogIndex-1-rf.lastIncludedIndex].Term
 					}
