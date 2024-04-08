@@ -188,7 +188,7 @@ func (rf *Raft) Snapshot(index int, snapshot []byte) {
 	// Your code here (2D).
 	rf.mu.Lock()
 
-	if index < rf.lastIncludedIndex {
+	if index <= rf.lastIncludedIndex {
 		rf.mu.Unlock()
 		return
 	}
