@@ -718,6 +718,57 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	}
 	fmt.Printf("---------------\n%d接受新命令%d,term is %d,len is %d\n---------------\n", rf.me, command, term, index)
 
+	num := 0
+	for serveId, _ := range rf.peers {
+		if rf.me == serveId {
+			continue
+		}
+		if (rf.nextIndex[serveId] - 1) < rf.lastIncludedIndex {
+			fmt.Printf("%d %s %d\n", rf.me, "begin to Install", serveId)
+			args := InstallSnapshotArgs{
+				Term:              rf.currentTerm,
+				Leader:            rf.me,
+				LastIncludedIndex: rf.lastIncludedIndex,
+				LastIncludedTerm:  rf.lastIncludedTerm,
+				Offset:            0,
+				Data:              rf.persister.ReadSnapshot(),
+				Done:              true,
+			}
+			reply := InstallSnapshotReply{
+				Term: 0,
+			}
+			go rf.sendInstallSnapshot(serveId, &args, &reply)
+		} else {
+			fmt.Printf("%d %s %d\n", rf.me, "begin to append", serveId)
+			args := AppendEntriesArgs{
+				Term:         rf.currentTerm,
+				LeaderId:     rf.me,
+				PrevLogIndex: 0,
+				PrevLogTerm:  0,
+				UpdateIndex:  0,
+				LeaderCommit: rf.commitIndex,
+				Entries:      nil,
+			}
+			reply := AppendEntriesReply{
+				ReplyState: AppNormal,
+			}
+
+			args.Record = time.Now().Format("Jan _2 15:04:05.000")
+			//fmt.Printf("%s\n", args.Record)
+			args.PrevLogIndex = rf.nextIndex[serveId] - 1
+			args.PrevLogTerm = rf.lastIncludedTerm
+			fmt.Printf("%d: prevlogindex = %d, lastIndex = %d, rf.log = %d\n", rf.me, args.PrevLogIndex, rf.lastIncludedIndex, len(rf.log))
+			if (args.PrevLogIndex - rf.lastIncludedIndex) > 0 {
+				args.PrevLogTerm = rf.log[args.PrevLogIndex-1-rf.lastIncludedIndex].Term
+			}
+			entries := make([]Entry, 0)
+			entries = append(entries, rf.log[rf.nextIndex[serveId]-1-rf.lastIncludedIndex:]...)
+			args.Entries = entries
+			args.UpdateIndex = rf.nextIndex[serveId] - 1
+			go rf.sendAppendEntries(serveId, &args, &reply, &num)
+		}
+	}
+
 	return index, term, isLeader
 }
 
