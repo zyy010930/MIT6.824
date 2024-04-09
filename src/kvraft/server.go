@@ -163,7 +163,7 @@ func (kv *KVServer) CommandApply(applyMsg raft.ApplyMsg) {
 	}
 	if _, isLeader := kv.rf.GetState(); !isLeader {
 		DPrintf("kv.rf.GetPersistSize = %d\n", kv.rf.GetPersistSize())
-		if kv.maxraftstate != -1 && kv.rf.GetPersistSize() >= int(float64(kv.maxraftstate)*0.85) {
+		if kv.maxraftstate != -1 && kv.rf.GetPersistSize() >= int(float64(kv.maxraftstate)*10.0/11.0) {
 			w := new(bytes.Buffer)
 			e := labgob.NewEncoder(w)
 			_ = e.Encode(kv.dataStore)
@@ -179,7 +179,7 @@ func (kv *KVServer) CommandApply(applyMsg raft.ApplyMsg) {
 		//kv.mu.Unlock()
 		applyChannel <- apply
 		DPrintf("kv.rf.GetPersistSize = %d\n", kv.rf.GetPersistSize())
-		if kv.maxraftstate != -1 && kv.rf.GetPersistSize() >= int(float64(kv.maxraftstate)*0.85) {
+		if kv.maxraftstate != -1 && kv.rf.GetPersistSize() >= int(float64(kv.maxraftstate)*10.0/11.0) {
 			w := new(bytes.Buffer)
 			e := labgob.NewEncoder(w)
 			_ = e.Encode(kv.dataStore)
