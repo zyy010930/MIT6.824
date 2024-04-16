@@ -55,12 +55,22 @@ func check(t *testing.T, groups []int, ck *Clerk) {
 
 func check_same_config(t *testing.T, c1 Config, c2 Config) {
 	if c1.Num != c2.Num {
+		fmt.Printf("%d %d\n", c1.Num, c2.Num)
 		t.Fatalf("Num wrong")
 	}
 	if c1.Shards != c2.Shards {
+		fmt.Printf("num:%d/%d,len:%d/%d\n", c1.Num, c2.Num, len(c1.Shards), len(c2.Shards))
+		for _, i := range c1.Shards {
+			fmt.Printf("%d ", i)
+		}
+		fmt.Printf("\n")
+		for _, i := range c2.Shards {
+			fmt.Printf("%d ", i)
+		}
 		t.Fatalf("Shards wrong")
 	}
 	if len(c1.Groups) != len(c2.Groups) {
+		fmt.Printf("num:%d/%d,len:%d/%d\n", c1.Num, c2.Num, len(c1.Groups), len(c2.Groups))
 		t.Fatalf("number of Groups is wrong")
 	}
 	for gid, sa := range c1.Groups {
