@@ -164,7 +164,7 @@ func (sc *ShardCtrler) CommandApply(applyMsg raft.ApplyMsg) {
 		}
 	} else if op.OpType == "query" {
 		num := 0
-		if op.Num == -1 {
+		if op.Num == -1 || op.Num >= len(sc.configs) {
 			num = len(sc.configs) - 1
 		} else {
 			num = op.Num
@@ -174,6 +174,17 @@ func (sc *ShardCtrler) CommandApply(applyMsg raft.ApplyMsg) {
 			Term:   applyMsg.CommandTerm,
 			Ok:     true,
 		}
+		//if num >= len(sc.configs) {
+		//	apply = ServerApply{
+		//		Ok: false,
+		//	}
+		//} else {
+		//	apply = ServerApply{
+		//		Config: sc.configs[num],
+		//		Term:   applyMsg.CommandTerm,
+		//		Ok:     true,
+		//	}
+		//}
 	}
 
 	if _, isLeader := sc.rf.GetState(); !isLeader {

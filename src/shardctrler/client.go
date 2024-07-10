@@ -6,6 +6,7 @@ package shardctrler
 
 import (
 	"6.824/labrpc"
+	"fmt"
 	"sync"
 )
 import "time"
@@ -52,7 +53,8 @@ func (ck *Clerk) Query(num int) Config {
 		for _, srv := range ck.servers {
 			var reply QueryReply
 			ok := srv.Call("ShardCtrler.Query", args, &reply)
-			if ok && reply.Err == OK {
+			if ok && reply.WrongLeader == false && reply.Err == OK {
+				fmt.Print("query stop\n")
 				return reply.Config
 			}
 		}
