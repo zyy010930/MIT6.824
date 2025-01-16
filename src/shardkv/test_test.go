@@ -330,7 +330,9 @@ func TestConcurrent1(t *testing.T) {
 		ck1 := cfg.makeClient()
 		for atomic.LoadInt32(&done) == 0 {
 			x := randstring(5)
+			fmt.Printf("concurrent append 1\n")
 			ck1.Append(ka[i], x)
+			fmt.Printf("concurrent append 2\n")
 			va[i] += x
 			time.Sleep(10 * time.Millisecond)
 		}

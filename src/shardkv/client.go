@@ -72,18 +72,18 @@ func MakeClerk(ctrlers []*labrpc.ClientEnd, make_end func(string) *labrpc.Client
 // keeps trying forever in the face of all other errors.
 // You will have to modify this function.
 func (ck *Clerk) Get(key string) string {
-
+	ck.requestId++
 	args := GetArgs{
 		Key:       key,
 		ClerkId:   ck.clerkId,
 		RequestId: ck.requestId,
 	}
 
-	defer func() {
-		ck.mu.Lock()
-		ck.requestId++
-		ck.mu.Unlock()
-	}()
+	//defer func() {
+	//	ck.mu.Lock()
+	//	ck.requestId++
+	//	ck.mu.Unlock()
+	//}()
 
 	for {
 		//ck.config = ck.sm.Query(-1)
@@ -125,6 +125,7 @@ func (ck *Clerk) Get(key string) string {
 // shared by Put and Append.
 // You will have to modify this function.
 func (ck *Clerk) PutAppend(key string, value string, op string) {
+	ck.requestId++
 	args := PutAppendArgs{
 		Key:       key,
 		Value:     value,
@@ -132,17 +133,17 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 		Op:        op,
 		RequestId: ck.requestId,
 	}
-	defer func() {
-		ck.mu.Lock()
-		ck.requestId++
-		ck.mu.Unlock()
-	}()
+	//defer func() {
+	//	ck.mu.Lock()
+	//	ck.requestId++
+	//	ck.mu.Unlock()
+	//}()
 
 	for {
 		//ck.config = ck.sm.Query(-1)
 		shard := key2shard(key)
 		gid := ck.config.Shards[shard]
-		fmt.Printf("put/append gid: %d\n", gid)
+		fmt.Printf("clerk: %d, %s: %s put/append gid: %d\n", ck.clerkId, key, value, gid)
 		for _, i := range ck.config.Shards {
 			fmt.Printf("%d ", i)
 		}
@@ -152,6 +153,7 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 				srv := ck.make_end(servers[si])
 				var reply PutAppendReply
 				ok := srv.Call("ShardKV.PutAppend", &args, &reply)
+				fmt.Printf("args = %s, append reply: %s\n", args.Value, reply.Err)
 				if ok && reply.Err == OK {
 					return
 				}
